@@ -1,0 +1,52 @@
+{
+    "name": "property-prover",
+    "version": "1.0.0",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "A tool to verify properties of Curry programs (contracts, non-failing)",
+    "category": [ "Programming", "Analysis", "Verification" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base"                    : ">= 3.0.0, < 4.0.0",
+        "cass-analysis"           : ">= 3.0.0, < 4.0.0",
+        "cass"                    : ">= 3.0.0, < 4.0.0",
+        "containers"              : ">= 3.0.0, < 4.0.0",
+        "contracts"               : ">= 3.0.0, < 4.0.0",
+        "currypath"               : ">= 3.0.0, < 4.0.0",
+        "directory"               : ">= 3.0.0, < 4.0.0",
+        "execpath"                : ">= 3.0.0, < 4.0.0",
+        "filepath"                : ">= 3.0.0, < 4.0.0",
+        "flatcurry"               : ">= 3.0.0, < 4.0.0",
+        "flatcurry-annotated"     : ">= 3.3.0, < 4.0.0",
+        "flatcurry-type-annotated": ">= 3.3.0, < 4.0.0",
+        "frontend-exec"           : ">= 3.0.0, < 4.0.0",
+        "io-extra"                : ">= 3.0.0, < 4.0.0",
+        "process"                 : ">= 3.0.0, < 4.0.0",
+        "profiling"               : ">= 3.0.0, < 4.0.0",
+        "showflatcurry"           : ">= 3.0.0, < 4.0.0",
+        "smtlib"                  : ">= 3.0.0, < 4.0.0",
+        "smtlib-solver"           : ">= 3.0.0, < 4.0.0",
+        "transformers"            : ">= 3.0.0, < 4.0.0",
+        "wl-pprint"               : ">= 3.0.0, < 4.0.0"
+     },
+    "configModule": "PackageConfig",
+    "executable": {
+        "name"   : "currvy",
+        "main"   : "Main",
+        "options": { "kics2" : ":set rts -T" }
+    },
+    "testsuite": [
+      { "src-dir": "examples/failfree",
+        "script": "test.sh",
+        "options": "-v"
+      },
+      { "src-dir": "examples/contracts",
+        "script": "test.sh",
+        "options": "-v"
+      }
+    ],
+    "source": {
+        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/failfree.git",
+        "tag": "$version"
+    }
+}
