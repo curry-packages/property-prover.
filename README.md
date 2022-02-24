@@ -93,17 +93,6 @@ Notes:
   one can use the option `--name` of the tool.
 
 
-Directories of the package:
----------------------------
-
-* examples/contracts: some examples (and test suite)
-
-* include: an include file for the SMT solver and a small Curry program
-  containing operations which perform dynamic contract checking
-  for unverified contracts
-
-* src: source code of the implementation
-
 ---------------------------------------------------------------------------
 
 Basic idea of the fail-free verification tool:
@@ -215,11 +204,14 @@ Notes:
 Directories of the package:
 ---------------------------
 
-* examples: some examples (and test suite)
+* `examples/contracts`: some examples (and test suite) for contract verification
 
-* include: an include file for the SMT solver and non-fail conditions
-  for various system modules
+* `examples/failfree`: some examples (and test suite) for fail-free verification
 
-* src: source code of the implementation
+* `include`: a small Curry program containing operations which perform
+  dynamic contract checking for unverified contracts and
+  non-fail conditions for various system modules
+
+* `src`: source code of the implementation
 
 ---------------------------------------------------------------------------
