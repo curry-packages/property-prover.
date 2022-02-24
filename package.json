@@ -46,7 +46,7 @@
       }
     ],
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/failfree.git",
+        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/property-prover.git",
         "tag": "$version"
     }
 }
