@@ -59,16 +59,27 @@ checkPreCon scripttitle assertion impbindings imp mname mvars = do
 
 -- Checks the satisfiability of the given assertion and checks the post
 -- condition if the assertion is satisfiable.
+-- If it is satisfiable, just the script to prove it is returned,
+-- other `Nothing` is returned.
 checkPostCon :: String -> SMT.Term -> SMT.Term -> SMT.Term
-             -> TransStateM (Maybe Bool)
+             -> TransStateM (Maybe String)
 checkPostCon scripttitle assertion impbindings imp = do
   optcontract <- lift $ getOption optContract
   if optcontract > 1
-    then
-      generateSMT scripttitle assertion impbindings imp
-        >>= checkSMT evalPostCon [] (\name args _ -> "Call"
-          ++ printCall name args ++ "violates " ++ toPostCondName name)
-    else return $ Just False
+    then do
+      smt <- generateSMT scripttitle assertion impbindings imp
+      mbbool <- checkSMT evalPostCon []
+                  (\name args _ -> "Call" ++ printCall name args ++
+                                   "violates " ++ toPostCondName name)
+                  smt
+      return $
+        maybe Nothing
+              (\b -> if b
+                       then Just $ "; proved by: z3 -smt2 <SMTFILE>\n\n" ++
+                                   showSMT (smt ++ checkSatCommands)
+                       else Nothing)
+              mbbool
+    else return Nothing
 
 -- Generates a string representation of a function call.
 printCall :: String -> [String] -> String
@@ -114,12 +125,15 @@ generateSMT scripttitle assertion impbindings imp = do
               ]
       smt   = unpoly $ (map Right smt1) ++ [Left smtfuncs] ++ (map Right smt2)
   lift $ printWhenAll $
-    "SMT SCRIPT:\n" ++ (showWithLineNums $ showSMT $ smt ++
-    [ SMT.Comment "check satisfiability:"
-    , SMT.CheckSat
-    , SMT.Comment "if unsat, the implication is valid"
-    ])
+    "SMT SCRIPT:\n" ++ (showWithLineNums $ showSMT $ smt ++ checkSatCommands)
   return smt
+
+checkSatCommands :: [SMT.Command]
+checkSatCommands =
+  [ SMT.Comment "check satisfiability:"
+  , SMT.CheckSat
+  , SMT.Comment "if unsat, the implication is valid"
+  ]
 
 -- Checks the given SMT script for satisfiability and evaluates the returned
 -- values with the given evaluation function if the solver returns satisfiable.
@@ -138,10 +152,14 @@ checkSMT eval mvars output smt = do
           vartypes
       argtypes = groupPairs $ map snd getvaluevars
       mvars' = map tvar mvars
-  lift $ printWhenAll $ "CALLING Z3 (with options: -smt2 -T:5)..."
+  timeout <- lift (getOption optTimeout >>= \to -> return $ "-T:" ++ show to)
+  lift $ printWhenAll $ "CALLING Z3 (with options: -smt2 " ++ timeout ++ ")..."
   exNum <- lift $ getOption optExamples
+  -- store SMT script, might be useful to check for errors
+  lift $ evalOption optVerb (> 2) $ liftIO $
+    writeFile "LATEST_SMT.smt" (showSMT smt)
   answer <- liftIO $
-    evalSessions z3 { flags = ["-smt2", "-in", "-T:5"] } defSMTOpts $
+    evalSessions z3 { flags = ["-smt2", "-in", timeout] } defSMTOpts $
       solveAllSMTVars (union mvars' $ map fst getvaluevars) smt exNum
   case answer of
     Left  errs -> (lift $ printWhenAll $ pPrint $ hsep $ map pretty errs) >>

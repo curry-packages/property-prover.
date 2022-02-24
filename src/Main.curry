@@ -27,6 +27,7 @@ import FlatCurry.ShowIntMod        ( showCurryModule )
 import FlatCurry.TypeAnnotated.Files ( readTypeAnnotatedFlatCurry
                                      , writeTypeAnnotatedFlatCurry )
 import FlatCurry.Types             ( Prog(Prog) )
+import FlatCurry.Typed.Simplify    ( simpProg )
 
 import ContractProver
 import Failfree
@@ -53,7 +54,7 @@ testcv s = evalStateT (verifyMod s) $
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Property Verification Tool for Curry (Version of 10/02/22)"
+   bannerText = "Property Verification Tool for Curry (Version of 11/02/22)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ---------------------------------------------------------------------------
@@ -63,8 +64,7 @@ main = do
   (opts,progs) <- processOptions banner args
   let optname = optName opts
   if not (null optname)
-    then putStrLn $ "Non-failure condition for '" ++ optname ++ "':\n" ++
-                    encodeContractName (optname ++ "'nonfail")
+    then putStrLn $ showEncodedNames optname
     else do
       z3exists <- fileInPath "z3"
       if z3exists
@@ -76,6 +76,16 @@ main = do
           putStrLn "The SMT solver Z3 is required for the verifier to work"
           putStrLn "but the program 'z3' is not found on the PATH!"
           exitWith 1
+
+-- Shows the names of a non-fail condition and pre-/postconditions for
+-- a given identifier (typically, operators with special characters).
+showEncodedNames :: String -> String
+showEncodedNames cid = unlines
+  [ "Names to specify properties of operation '" ++ cid ++ "':"
+  , "Non-fail condition: " ++ encodeContractName (cid ++ "'nonfail")
+  , "Precondition:       " ++ encodeContractName (cid ++ "'pre")
+  , "Postcondition:      " ++ encodeContractName (cid ++ "'post")
+  ]
 
 verifyModules :: [String] -> [String] -> VStateM ()
 verifyModules _            []           = return ()
@@ -101,33 +111,40 @@ verifyModules verifiedmods (mod : mods)
 verifyMod :: String -> VStateM ()
 verifyMod modname = do
   printWhenStatus $ "Analyzing module '" ++ modname ++ "':"
-  prog <- readSimpTypedFlatCurryWithSpec modname
-  let errs = checkContractUsage (progName prog)
-               (map (\fd -> (snd (funcName fd), funcType fd)) (progFuncs prog))
+  oprog <- readTypedFlatCurryWithSpec modname
+  let errs = checkContractUsage (progName oprog)
+               (map (\fd -> (snd (funcName fd), funcType fd)) (progFuncs oprog))
   unless (null errs) $ lift $ do
     putStr $ unlines (map showOpError errs)
     exitWith 1
-  impprogs <- mapM readSimpTypedFlatCurryWithSpec $ progImports prog
+  let prog = simpProg oprog
+  failfree <- getOption optFailfree
+  impprogs <- if failfree
+                then mapM readSimpTypedFlatCurryWithSpec $ progImports prog
+                else return []
   let allprogs = prog : impprogs
   addProgsToState allprogs
   addFunsToVerifyInfo $ concatMap progFuncs allprogs
   pi1 <- lift getProcessInfos
   printWhenAll $ unlines $
-    ["ORIGINAL PROGRAM:", line, showCurryModule (unAnnProg prog), line]
+    ["ORIGINAL PROGRAM:",   line, showCurryModule (unAnnProg oprog), line,
+     "SIMPLIFIED PROGRAM:", line, showCurryModule (unAnnProg prog),  line]
   whenOption optFailfree $ proveNonFailingFuncs prog
   evalOption optContract (> 0) $ do
     modifyOptions (\opts -> opts { optConFail = True })
-    prog' <- verifyPostConditions prog >>= verifyPreConditions
-    whenOption optWrite $ do
-      prog'' <- addPreConditions prog'
-      lift $ do
+    prog1 <- verifyPostConditions oprog >>= verifyPreConditions
+    whenOption (\o -> optFCY o || optAFCY o) $ do
+      prog2 <- addPreConditions prog1
+      tprog <- lift $ do
         ccprog <- fromJust <$>
-          readTypedFlatCurryFromPath "include" "ContractChecker"
-        let ccfuncs  = map (updFuncName $ \n -> (modname, snd n)) $
-                           progFuncs ccprog
-            prog'''  = updProgFuncs (++ ccfuncs) prog''
-        writeFlatCurry $ unAnnProg prog'''
-        writeTypeAnnotatedFlatCurry prog'''
+          readTypedFlatCurryFromPath "include" "ContractChecks"
+        let ccfuncs = progFuncs (rnmProg modname ccprog)
+        return $ updProgFuncs (++ ccfuncs) prog2
+      printWhenAll $ unlines $
+        ["TRANSFORMED PROGRAM WITH CONTRACT CHECKING:", line,
+         showCurryModule (unAnnProg tprog), line]
+      whenOption optFCY  $ lift $ writeFlatCurry $ unAnnProg tprog
+      whenOption optAFCY $ lift $ writeTypeAnnotatedFlatCurry tprog
   pi2 <- lift $ getProcessInfos
   let tdiff = maybe 0 id (lookup ElapsedTime pi2) -
               maybe 0 id (lookup ElapsedTime pi1)
@@ -155,19 +172,5 @@ axiomatizedOps = ["Prelude_null","Prelude_take","Prelude_length"]
 Still to be done:
 
 - consider encapsulated search
-
-
-Verified system libraries:
-
-- Prelude
-- Char
-- Either
-- ErrorState
-- Integer
-- Maybe
-- State
-- ShowS
-
- Prelude Char Either ErrorState Integer Maybe State ShowS
 
 -}

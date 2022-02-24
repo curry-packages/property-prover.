@@ -7,11 +7,13 @@ import Contract.Names
 import Control.Monad.IO.Class      ( liftIO )
 import Control.Monad.Trans.Class   ( lift )
 import Control.Monad.Trans.State   ( evalStateT, gets, put )
-import Data.List                   ( elemIndex, find, init, maximum, minimum )
+import Data.List                   ( elemIndex, find, init, intercalate
+                                   , maximum, minimum )
 import Data.Maybe                  ( isJust )
 
 import FlatCurry.Annotated.Goodies
 import FlatCurry.Annotated.Types
+import FlatCurry.Show              ( showCurryType )
 import FlatCurry.Types             ( showQName )
 import Language.SMTLIB.Goodies
 import qualified Language.SMTLIB.Types as SMT
@@ -70,18 +72,21 @@ provePostCondition postfun allfuns = do
     postcondformula <- applyFunc postfun targsr >>= pred2SMT
     let title = "verify postcondition of '" ++ mainfunc ++ "'..."
     lift $ printWhenIntermediate $ "Trying to " ++ title
-    valid <- checkPostCon ("SMT script to " ++ title)
+    mbsmt <- checkPostCon ("SMT script to " ++ title)
                           (tand [precondformula, bodyformula])
                           true postcondformula
-    if valid == Just True
-      then lift $ do
-        printWhenStatus $ mainfunc ++ ": POSTCONDITION VERIFIED"
-        addPostCondToStats mainfunc True
-        return allfuns
-      else lift $ do
-        printWhenStatus $ mainfunc ++ ": POSTCOND CHECK ADDED"
-        addPostCondToStats mainfunc False
-        return $ map (addPostConditionTo (funcName postfun)) allfuns
+    maybe (lift $ do
+             printWhenStatus $ mainfunc ++ ": POSTCOND CHECK ADDED"
+             addPostCondToStats mainfunc False
+             return $ map (addPostConditionTo (funcName postfun)) allfuns)
+          (\proof -> lift $ do
+             printWhenStatus $ mainfunc ++ ": POSTCONDITION VERIFIED"
+             whenOption optStoreProof $ liftIO $
+               writeFile ("PROOF_" ++ showQNameNoDots orgqn ++ "_" ++
+                          "SatisfiesPostCondition.smt") proof
+             addPostCondToStats mainfunc True
+             return allfuns)
+          mbsmt
 
 -- If the function declaration is the declaration of the given function name,
 -- decorate it with a postcondition check.
@@ -97,7 +102,7 @@ addPostConditionCheck _ (AExternal _ _) =
   error $ "Trying to add postcondition to external function!"
 addPostConditionCheck qf@(mn,fn) (ARule ty lhs rhs) = --ALit boolType (Intc 42)
   AComb ty FuncCall
-    ((mn, "checkPostCond"),
+    ((mn, "checkPostCond_" ++ type2ID tt ++ "_" ++ type2ID (annExpr rhs)),
      FuncType ty (FuncType (FuncType ty boolType)
                            (FuncType stringType (FuncType tt ty))))
     [ rhs
@@ -279,7 +284,7 @@ addPreConditionCheck :: TypeExpr -> CombType -> QName -> TypeExpr
                      -> [TAExpr] -> TAExpr
 addPreConditionCheck ty ct qf@(mn,fn) tys args =
   AComb ty FuncCall
-    ((mn, "checkPreCond"),
+    ((mn, "checkPreCond_" ++ type2ID tt),
      FuncType ty (FuncType boolType (FuncType stringType (FuncType tt ty))))
     [ AComb ty ct (toNoCheckQName qf,tys) args
     , AComb boolType ct (toPreCondQName qf, pctype) args
@@ -291,8 +296,28 @@ addPreConditionCheck ty ct qf@(mn,fn) tys args =
   tt       = tupleType argtypes
   pctype   = foldr FuncType boolType argtypes
 
+-- Translate a type expression into an identifier which is the suffix
+-- of `checkPreCond` which is a type-specialized instance.
+type2ID :: TypeExpr -> String
+type2ID te = case te of
+  TCons (mn,tc) tes | mn == "Prelude" && null tes
+    -> intercalate "_" (tc2ID tc : map type2ID tes)
+  _ -> "Any"
+ where
+  tc2ID tc | tc == "[]" = "List"
+           | tc == "()" = "Unit"
+           | otherwise  = tc
+
 ---------------------------------------------------------------------------
+-- Auxiliaries:
+
 --- Transform a qualified name into a name of the corresponding function
 --- without precondition checking by adding the suffix "'NOCHECK".
 toNoCheckQName :: (String,String) -> (String,String)
 toNoCheckQName (mn,fn) = (mn, fn ++ "'NOCHECK")
+
+-- Shows a qualified name by replacing all dots by underscores.
+showQNameNoDots :: QName -> String
+showQNameNoDots = map (\c -> if c=='.' then '_' else c) . showQName
+
+---------------------------------------------------------------------------

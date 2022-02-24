@@ -69,9 +69,9 @@ readTypedFlatCurryFromPath path mname = do
   case mbsource of
     Nothing              -> return Nothing
     Just (dir, filepath) -> do
-      let tafcyfile = inCurrySubdir dir </> (mname ++ ".tafcy")
+      let afcyfile = inCurrySubdir dir </> (mname ++ ".afcy")
       unless (mname == "Prelude") $
-        doesFileExist tafcyfile >>= flip when (removeFile tafcyfile)
+        doesFileExist afcyfile >>= flip when (removeFile afcyfile)
       callFrontendWithParams TAFCY (setQuiet True defaultParams) filepath
       readTypeAnnotatedFlatCurryFile
         (dir </> typeAnnotatedFlatCurryFileName mname)

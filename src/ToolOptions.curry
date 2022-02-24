@@ -3,7 +3,7 @@
 --- related operations.
 ---
 --- @author Michael Hanus
---- @version May 2021
+--- @version February 2022
 -------------------------------------------------------------------------
 
 module ToolOptions
@@ -33,17 +33,36 @@ data Options = Options
                           -- but not not be correct if some argument is not
                           -- demanded (TODO: add demand analysis to make it
                           -- safe and powerful)
-  , optWrite    :: Bool   -- if the modified flat curry program should be
-                          -- written back
+  , optFCY      :: Bool   -- replace FlatCurry program?
+  , optAFCY     :: Bool   -- replace type-annotated FlatCurry program?
   , optFailfree :: Bool   -- verify non-failing functions?
   , optContract :: Int    -- contract behavior (0: nothing, 1: add, 2: verify)
   , optTime     :: Bool   -- show elapsed verification time?
   , optExamples :: Int    -- the maximum number of counter examples that should
                           -- be generated
+  , optTimeout  :: Int    -- timeout (in seconds) for SMT prover
+  , optStoreProof :: Bool -- store scripts of successful contract proofs
   }
 
+--- Default options.
 defaultOptions :: Options
-defaultOptions = Options 1 False "" False False False False True True 2 False 3
+defaultOptions = Options
+  { optVerb     = 1
+  , optHelp     = False
+  , optName     = ""
+  , optError    = False
+  , optRec      = False
+  , optConFail  = False
+  , optStrict   = False
+  , optFCY      = False
+  , optAFCY     = False
+  , optFailfree = True
+  , optContract = 2
+  , optTime     = False
+  , optExamples = 3
+  , optTimeout  = 4
+  , optStoreProof = True
+  }
 
 --- Process the actual command line argument and return the options
 --- and the name of the main program.
@@ -69,19 +88,6 @@ options =
   [ Option "h?" ["help"]
            (NoArg (\opts -> opts { optHelp = True }))
            "print help and exit"
-  , Option "n" ["name"]
-            (ReqArg (\s opts -> opts { optName = s }) "<f>") $
-            "show only the name of a non-fail condition\n" ++
-            "and pre- and postconditions"
-  , Option "m" ["checkmode"] (ReqArg readContractMode "n|a|v") $ unlines
-             [ "behavior of contract checking:"
-             , "a: only add contract checks"
-             , "v: verify contracts (default)"
-             , "n: do nothing"
-             ]
-  , Option "f" ["no-failfree"]
-           (NoArg (\opts -> opts { optFailfree = False }))
-           "don't verify non-fail conditions"
   , Option "q" ["quiet"]
            (NoArg (\opts -> opts { optVerb = 0 }))
            "run quietly (no output, only exit code)"
@@ -94,6 +100,25 @@ options =
               , "2: show intermediate results (same as `-v')"
               , "3: show all details (e.g., SMT scripts)"
               ]
+  , Option "n" ["name"]
+            (ReqArg (\s opts -> opts { optName = s }) "<f>") $
+            "show only the names of non-fail conditions\n" ++
+            "and pre- and postconditions of a function <f>"
+  , Option "m" ["checkmode"] (ReqArg readContractMode "n|a|v") $ unlines
+             [ "behavior of contract checking:"
+             , "a: only add contract checks"
+             , "v: verify contracts (default)"
+             , "n: do nothing"
+             ]
+  , Option "" ["target"]
+            (ReqArg checkTarget "<T>")
+            ("target of the transformed program:\n" ++
+             "NONE : do not store transformed program (default)\n" ++
+             "FCY  : write FlatCurry program\n" ++
+             "TAFCY: write type-annotated FlatCurry program")
+  , Option "f" ["no-failfree"]
+           (NoArg (\opts -> opts { optFailfree = False }))
+           "don't verify non-fail conditions"
   , Option "e" ["error"]
            (NoArg (\opts -> opts { optError = True }))
            "consider 'Prelude.error' as a failing operation"
@@ -106,9 +131,12 @@ options =
   , Option "s" ["strict"]
            (NoArg (\opts -> opts { optStrict = True }))
            "check contracts w.r.t. strict evaluation\nstrategy"
-  , Option "w" ["no-write"]
-           (NoArg (\opts -> opts { optWrite = False }))
-           "do not overwrite the FlatCurry program\nwith the modified version"
+  , Option "" ["timeout"]
+           (ReqArg (safeReadNat (\n opts -> opts { optTimeout = n })) "<n>")
+           ("timeout for SMT prover (default: " ++
+            show (optTimeout defaultOptions) ++ "s)")
+  , Option "" ["noproof"] (NoArg (\opts -> opts { optStoreProof = False }))
+           "do not write scripts of successful proofs"
   , Option "t" ["time"]
            (NoArg (\opts -> opts { optTime = True }))
            "show total verification time for each module"
@@ -124,6 +152,13 @@ options =
   checkVerb n opts = if n>=0 && n<4
                        then opts { optVerb = n }
                        else error "Illegal verbosity level (try `-h' for help)"
+
+  checkTarget t opts = case map toUpper t of
+    "NONE"  -> opts { optFCY = False, optAFCY = False }
+    "FCY"   -> opts { optFCY = True,  optAFCY = False }
+    "TAFCY" -> opts { optFCY = False, optAFCY = True  }
+    _       -> error $ "Illegal target `" ++ t ++ "' (try `-h' for help)"
+
   readContractMode s opts = case s of
     "n" -> opts { optContract = 0 }
     "a" -> opts { optContract = 1 }

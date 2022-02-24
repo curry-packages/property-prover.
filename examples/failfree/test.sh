@@ -9,7 +9,7 @@ fi
 # Tool executable:
 TOOLBIN=currvy
 # Tool options:
-OPTS="--contract --contractMode n"
+OPTS="--contract --checkmode n"
 
 /bin/rm -rf .curry
 ECODE=0
