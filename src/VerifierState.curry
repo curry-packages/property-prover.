@@ -1,16 +1,20 @@
 module VerifierState where
 
+import Analysis.ProgInfo
 import Control.Applicative         ( when )
 import Control.Monad.Trans.Class   ( lift )
 import Control.Monad.Trans.State   ( StateT, get, gets, modify, put )
-import Data.List                   ( find, isSuffixOf )
+import Data.List                   ( find, isSuffixOf, nub )
 
 import Contract.Names              ( isNonFailName, isPreCondName
                                    , isPostCondName )
 import FlatCurry.Annotated.Goodies
+import FlatCurry.ShowIntMod        ( showFuncDeclAsFlatCurry )
 
+import FlatCurry.Typed.TypeCheck
 import FlatCurry.Typed.Types
 import ToolOptions
+import Inference
 
 ---------------------------------------------------------------------------
 -- Some global information used by the verification process:
@@ -39,6 +43,42 @@ addFunsToVerifyInfo' fdecls ti =
   postconds = filter (isPostCondName . snd . funcName) fdecls
   -- Non-failure condition operations:
   nfconds   = filter (isNonFailName  . snd . funcName) fdecls
+
+inferNFCs :: String -> ProgInfo (TypeDecl, [Constructor]) -> VStateM ()
+inferNFCs modname pinfo = do
+  vstate <- get
+  let infconds = nub (inferNFConds modname pinfo (allFuncs ti))
+      ti = trInfo vstate
+      ti'      = ti
+        { allFuncs = allFuncs ti ++ infconds -- TODO: remove duplicate NFCs
+        , nfConds  = nfConds ti ++ infconds
+        }
+      line = replicate 78 '-'
+  mapM_ (addNFCsToProgs infconds) (currTAProgs vstate)
+  put vstate { trInfo = ti' }
+  printWhenAll 
+    $ unlines
+    $ ["INFERRED NON-FAILURE CONDITIONS:", line]
+    ++ map (('\n' :) . showFuncDeclAsFlatCurry . unAnnFuncDecl) infconds
+    ++ [line]
+  checkProgs
+
+checkProgs :: VStateM ()
+checkProgs = do
+  vstate <- get
+  bs <- lift $ mapM (`isSaneProg` True) (currTAProgs vstate)
+  lift $ if and bs
+            then putStrLn "TYPE CHECK: SUCCESS"
+            else putStrLn "TYPE CHECK: FAILURE"
+  
+--- Adds NFCs to the respective program determined by the qualified name
+addNFCsToProgs :: [TAFuncDecl] -> AProg TypeExpr -> VStateM ()
+addNFCsToProgs nfcs (AProg modname imps tds fds opds) = do
+  vstate <- get
+  let prog' = AProg modname imps tds (fds ++ nfcs') opds
+      nfcs' = [nfc | nfc <- nfcs, fst (funcName nfc) == modname]
+  put (vstate { currTAProgs = prog' : currTAProgs vstate })
+  
 
 --- Is an operation name the name of a contract or similar?
 isContractOp :: QName -> Bool
@@ -143,7 +183,7 @@ showContractStats vstate =
  (if isVerifiedContracts vstate
     then "\nALL CONTRACTS VERIFIED!"
     else "")
-where
+ where
   showStat t fs = if null fs then "" else "\n" ++ t ++ ": " ++ unwords fs
 
 --- Shows the statistics in human-readable format.

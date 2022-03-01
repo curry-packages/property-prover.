@@ -1,5 +1,5 @@
 module Failfree
-  ( proveNonFailingFuncs
+  ( proveNonFailingFuncs, loadAnalysisWithImports
   ) where
 
 import Control.Monad               ( unless, when )

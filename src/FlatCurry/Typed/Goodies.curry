@@ -154,3 +154,9 @@ pre :: String -> QName
 pre f = ("Prelude",f)
 
 ----------------------------------------------------------------------------
+
+-- Strip outermost `ForallType` quantifications.
+stripForall :: TypeExpr -> TypeExpr
+stripForall texp = case texp of
+  ForallType _ te  -> stripForall te
+  _                -> texp

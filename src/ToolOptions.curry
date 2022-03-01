@@ -42,6 +42,7 @@ data Options = Options
                           -- be generated
   , optTimeout  :: Int    -- timeout (in seconds) for SMT prover
   , optStoreProof :: Bool -- store scripts of successful contract proofs
+  , optInferNFCs :: Bool  -- infer non-failure conditions automatically
   }
 
 --- Default options.
@@ -62,6 +63,7 @@ defaultOptions = Options
   , optExamples = 3
   , optTimeout  = 4
   , optStoreProof = True
+  , optInferNFCs = False
   }
 
 --- Process the actual command line argument and return the options
@@ -143,6 +145,9 @@ options =
   , Option "x" ["examples"]
            (ReqArg (safeReadNat (\n opts -> opts {optExamples = n})) "<n>")
            "maximum number of counter examples to generate"
+  , Option "i" ["infer"]
+           (NoArg (\opts -> opts { optInferNFCs = True }))
+           "infer non-failure conditions automatically"
   ]
  where
   safeReadNat opttrans s opts = case readNat s of

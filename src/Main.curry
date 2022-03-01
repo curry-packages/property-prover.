@@ -8,6 +8,7 @@
 
 module Main where
 
+import Analysis.TotallyDefined     ( siblingConsAndDecl )
 import Control.Monad               ( unless, when )
 import Control.Monad.Trans.Class   ( lift )
 import Control.Monad.Trans.State   ( evalStateT, get, gets )
@@ -28,6 +29,7 @@ import FlatCurry.TypeAnnotated.Files ( readTypeAnnotatedFlatCurry
                                      , writeTypeAnnotatedFlatCurry )
 import FlatCurry.Types             ( Prog(Prog) )
 import FlatCurry.Typed.Simplify    ( simpProg )
+
 
 import ContractProver
 import Failfree
@@ -125,6 +127,9 @@ verifyMod modname = do
   let allprogs = prog : impprogs
   addProgsToState allprogs
   addFunsToVerifyInfo $ concatMap progFuncs allprogs
+  whenOption optInferNFCs $ do
+    siblingconsinfo <- lift $ loadAnalysisWithImports siblingConsAndDecl prog
+    inferNFCs modname siblingconsinfo
   pi1 <- lift getProcessInfos
   printWhenAll $ unlines $
     ["ORIGINAL PROGRAM:",   line, showCurryModule (unAnnProg oprog), line,
