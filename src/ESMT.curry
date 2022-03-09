@@ -170,7 +170,7 @@ matchSorts []       (_:_)    = Nothing
 matchSorts (_:_)    []       = Nothing
 matchSorts (t1:ts1) (t2:ts2) = do
   s <- matchSort t1 t2
-  t <- matchSorts (map (substSort s) ts1)(map (substSort s) ts2)
+  t <- matchSorts (map (substSort s) ts1) ts2
   return (FM.union s t)
 
 --- Applies a sort substitution to a sort.
