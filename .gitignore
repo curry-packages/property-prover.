@@ -2,3 +2,5 @@
 .curry
 .cpm
 src/PackageConfig.curry
+
+*.smt

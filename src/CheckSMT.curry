@@ -123,7 +123,7 @@ generateSMT scripttitle assertion impbindings imp = do
               , SMT.Comment "Assert negated implication:"
               , sAssert (tnot imp)
               ]
-      smt   = unpoly $ (map Right smt1) ++ [Left smtfuncs] ++ (map Right smt2)
+      smt   = map reduceAsInCmd $ unpoly $ (map Right smt1) ++ [Left smtfuncs] ++ (map Right smt2)
   lift $ printWhenAll $
     "SMT SCRIPT:\n" ++ (showWithLineNums $ showSMT $ smt ++ checkSatCommands)
   return smt

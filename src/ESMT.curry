@@ -296,6 +296,13 @@ reduceAsInTerm (SMT.TComb f ts)  = SMT.TComb (simpAs f) (map reduceAsInTerm ts)
   simpAs qid = case qid of SMT.As n (SMT.SComb s _) | s == "Func" -> SMT.Id n
                            _                                      -> qid
 
+reduceAsInCmd :: SMT.Command -> SMT.Command
+reduceAsInCmd c = case c of
+  SMT.Assert t         -> SMT.Assert (reduceAsInTerm t)
+  SMT.DefineFunsRec fs -> SMT.DefineFunsRec $ map (\(fd,t) -> (fd, reduceAsInTerm t)) fs
+  SMT.GetValue ts      -> SMT.GetValue (map reduceAsInTerm ts)
+  _ -> c
+
 --------------------------------------------------------------------------
 -- Get all sort identifiers occurring in a sort.
 sortIdsOfSort :: SMT.Sort -> [SMT.Ident]
