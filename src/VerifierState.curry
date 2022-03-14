@@ -15,6 +15,8 @@ import FlatCurry.Typed.TypeCheck
 import FlatCurry.Typed.Types
 import ToolOptions
 import Inference
+import Debug.Trace
+
 
 ---------------------------------------------------------------------------
 -- Some global information used by the verification process:
@@ -54,8 +56,8 @@ inferNFCs modname pinfo = do
         , nfConds  = nfConds ti ++ infconds
         }
       line = replicate 78 '-'
-  mapM_ (addNFCsToProgs infconds) (currTAProgs vstate)
   put vstate { trInfo = ti' }
+  addNFCsToProgs infconds
   printWhenAll 
     $ unlines
     $ ["INFERRED NON-FAILURE CONDITIONS:", line]
@@ -63,6 +65,7 @@ inferNFCs modname pinfo = do
     ++ [line]
   checkProgs
 
+--- Run type check on all programs
 checkProgs :: VStateM ()
 checkProgs = do
   vstate <- get
@@ -72,13 +75,14 @@ checkProgs = do
             else putStrLn "TYPE CHECK: FAILURE"
   
 --- Adds NFCs to the respective program determined by the qualified name
-addNFCsToProgs :: [TAFuncDecl] -> AProg TypeExpr -> VStateM ()
-addNFCsToProgs nfcs (AProg modname imps tds fds opds) = do
+addNFCsToProgs :: [TAFuncDecl] -> VStateM ()
+addNFCsToProgs nfcs = do
   vstate <- get
-  let prog' = AProg modname imps tds (fds ++ nfcs') opds
-      nfcs' = [nfc | nfc <- nfcs, fst (funcName nfc) == modname]
-  put (vstate { currTAProgs = prog' : currTAProgs vstate })
-  
+  let progs = currTAProgs vstate
+      addNFC (AProg modname imps tds fds opds) =
+        let nfcs' = filter (\nfc -> fst (funcName nfc) == modname) nfcs
+        in AProg modname imps tds (fds ++ nfcs') opds
+  put (vstate { currTAProgs = map addNFC progs })
 
 --- Is an operation name the name of a contract or similar?
 isContractOp :: QName -> Bool
@@ -255,6 +259,14 @@ addPostCondToStats pc verified =
 addProgsToState :: [TAProg] -> VStateM ()
 addProgsToState progs =
   modify $ \vstate -> vstate { currTAProgs = currTAProgs vstate ++ progs }
+
+--- Looks up a program from a module name
+lookupProg :: ModuleName -> VStateM TAProg
+lookupProg modname = do
+  vst <- get
+  case find (\p -> progName p == modname) (currTAProgs vst) of
+    Nothing -> error $ "Missing program " ++ modname
+    Just p -> return p
 
 ---------------------------------------------------------------------------
 --- Selects the type declaration of a type constructor from the state.

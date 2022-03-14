@@ -131,9 +131,10 @@ verifyMod modname = do
     siblingconsinfo <- lift $ loadAnalysisWithImports siblingConsAndDecl prog
     inferNFCs modname siblingconsinfo
   pi1 <- lift getProcessInfos
+  progWithNFCs <- lookupProg modname
   printWhenAll $ unlines $
     ["ORIGINAL PROGRAM:",   line, showCurryModule (unAnnProg oprog), line,
-     "SIMPLIFIED PROGRAM:", line, showCurryModule (unAnnProg prog),  line]
+     "TRANSFORMED PROGRAM:", line, showCurryModule (unAnnProg progWithNFCs),  line]
   whenOption optFailfree $ proveNonFailingFuncs prog
   evalOption optContract (> 0) $ do
     modifyOptions (\opts -> opts { optConFail = True })

@@ -23,8 +23,13 @@ import           Simplification
 import           Text.Pretty                 ( pPrint )
 import           Utils                       ( encodeSpecialChars )
 
-type InfInfo = (QName, Bool, [QName], [TAFuncDecl])
+type InfInfo = ( QName  -- Function name
+               , Bool   -- Can the function fail?
+               , [QName] -- List of called functions
+               , [TAFuncDecl] -- Non-fail conditions associated with this function
+               )
 
+--- Infer NFCs for a list of function declarations
 inferNFConds :: ModuleName
              -> ProgInfo (TypeDecl, [Constructor])
              -> [TAFuncDecl]
@@ -36,6 +41,9 @@ inferNFConds modname info fdecls
         decls          = filterRelevantNFCs modname res
     in map unrec decls
 
+--- Filters relevant NFCs according to the following criteria:
+--- 1. the respective function can fail itself
+--- 2. a failing function calls the respective function
 filterRelevantNFCs :: ModuleName -> [InfInfo] -> [TAFuncDecl]
 filterRelevantNFCs modname res = fds
  where
@@ -54,10 +62,10 @@ filterRelevantNFCs modname res = fds
 
     qns' = nub (qns ++ concatMap (\(qn, _, cqns, _) -> qn : cqns) is')
 
+--- Infer NFCs for a single function declaration
 inferNF
   :: ModuleName -> ProgInfo (TypeDecl, [Constructor]) -> TAFuncDecl -> InfInfo
 inferNF modname info f@(AFunc qn@(mname, fname) arity vis ty rule) =
-   --(if fname == "max" then trace (show f ++ show fdecls) else id)
   (qn, canFail, calls, fdecls)
  where
   argtys                  = FCG.argTypes ty
@@ -81,6 +89,7 @@ inferNF modname info f@(AFunc qn@(mname, fname) arity vis ty rule) =
       , AFunc (qn' "_nonfailspec") (2 * arity) vis ty' rule'
       ]
 
+--- If a rule has a constant Boolean expression, return it
 isTrivialRule :: TARule -> Maybe TAExpr
 isTrivialRule (AExternal _ _)  = Nothing
 isTrivialRule (ARule _ _ expr) = case expr of
@@ -90,6 +99,9 @@ isTrivialRule (ARule _ _ expr) = case expr of
     _                    -> Nothing
   _                   -> Nothing
 
+
+--- Return transformed NFC rule along with information about called functions
+--- and whether the function can fail
 inferNFRule :: ProgInfo (TypeDecl, [Constructor])
             -> Int
             -> TypeExpr
