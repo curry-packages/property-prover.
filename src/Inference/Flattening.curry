@@ -3,7 +3,7 @@
 --- @author  Björn Peemöller
 --- @version April 2015
 --- -----------------------------------------------------------------------------
-module Flattening where
+module Inference.Flattening where
 
 import           Data.List                   ( intersect, mapAccumL, partition )
 import           Data.Tuple.Extra            ( second )

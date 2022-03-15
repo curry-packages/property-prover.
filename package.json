@@ -43,6 +43,10 @@
       { "src-dir": "examples/contracts",
         "script": "test.sh",
         "options": "-v"
+      },
+      { "src-dir": "examples/failfree-inference",
+        "script": "test.sh",
+        "options": "-v"
       }
     ],
     "source": {

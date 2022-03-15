@@ -3,13 +3,15 @@
 --- @author  Björn Peemöller
 --- @version April 2015
 --- -----------------------------------------------------------------------------
-module Simplification where
+
+module Inference.Simplification where
 
 import           Data.List                   ( mapAccumL, maximum, nub )
 import           Data.Tuple.Extra            ( second )
 import           FlatCurry.Annotated.Goodies
 import           FlatCurry.Annotated.Types
 
+--- Simplify an annotated expression
 simplifyExpr :: Eq a => AExpr a -> AExpr a
 simplifyExpr = trExpr AVar ALit AComb cLet AFree AOr cCase ABranch ATyped
  where

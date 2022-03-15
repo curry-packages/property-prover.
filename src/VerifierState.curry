@@ -14,8 +14,7 @@ import FlatCurry.ShowIntMod        ( showFuncDeclAsFlatCurry )
 import FlatCurry.Typed.TypeCheck
 import FlatCurry.Typed.Types
 import ToolOptions
-import Inference
-import Debug.Trace
+import Inference.Inference
 
 
 ---------------------------------------------------------------------------

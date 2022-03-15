@@ -1,4 +1,4 @@
-module Inference where
+module Inference.Inference where
 
 import           Analysis.ProgInfo
 import           Analysis.TotallyDefined     ( siblingCons )
@@ -8,7 +8,6 @@ import           Data.List
 import qualified Data.Map                    as DM
 import           Data.Maybe
   ( fromJust, fromMaybe, isNothing, mapMaybe )
-import           Debug.Trace
 import           FlatCurry.Annotated.Goodies
   ( allVars, allVarsInFunc, annExpr, branchPattern, patCons, unAnnExpr
   , unAnnFuncDecl )
@@ -18,8 +17,8 @@ import           FlatCurry.ShowIntMod        ( showFuncDeclAsFlatCurry )
 import           FlatCurry.Typed.Goodies
 import           FlatCurry.Typed.Types
 import           FlatCurry.Types
-import           Flattening
-import           Simplification
+import           Inference.Flattening
+import           Inference.Simplification
 import           Text.Pretty                 ( pPrint )
 import           Utils                       ( encodeSpecialChars )
 
@@ -129,6 +128,7 @@ inferNFRule info arity ty' (ARule _ argVars expr)
 
   bArgs                     = map (\(v, _) -> (starVar v, boolType)) argVars
 
+--- Return rule for calling inferred NFC with initial boolean values
 inferNFCallRule
   :: Int -> TypeExpr -> TypeExpr -> QName -> TARule -> Maybe TAExpr -> TARule
 inferNFCallRule _ _ _ _ r@(AExternal _ _) _ = r
@@ -152,21 +152,25 @@ inferNFCallRule arity nftype ty' qn (ARule _ argVars _) texp = ARule nftype
     FuncType t1 t2 -> (v, t1) : addTypes2Vars vs t2
     _              -> []
 
+--- Introduce new variables
 starVar :: Int -> Int
 starVar = (+ 10000)
 
+--- Transform variable into a starred variable
 starVarExp :: TAExpr -> TAExpr
 starVarExp e = case e of
   AVar _ i -> AVar boolType (starVar i)
   _        -> error $ "Function argument must be variable but found " ++ show e
 
 -- TODO: type annotations => type as result?
+--- Return transformed NFC expression along with information about called functions
+--- and whether the expression can fail
 inferNFExpr
   :: ProgInfo (TypeDecl, [Constructor]) -> TAExpr -> (Bool, [QName], TAExpr)
 inferNFExpr info expr
   = let inf = inferNFExpr info
     in case expr of
-         AVar ty i -> (False, [], AVar boolType (starVar i)) -- TODO: addConsts to more cases?
+         AVar ty i -> (False, [], AVar boolType (starVar i))
          ALit _ _ -> (False, [], boolExpr "True")
          AComb _ _ (("Prelude", "failed"), _) [] ->
            (True, [], boolExpr "False")
@@ -250,6 +254,7 @@ inferNFExpr info expr
          AFree _ vars e -> let (b, qs, e') = inf e
                            in (b, qs, AFree boolType vars e')
 
+--- Introduces starred variables for each pattern variable
 addStarVars2Branch :: TABranchExpr -> TABranchExpr
 addStarVars2Branch (ABranch p e) = case p of
   APattern _ _ vars@(_ : _) -> ABranch p
@@ -257,23 +262,11 @@ addStarVars2Branch (ABranch p e) = case p of
                        (repeat (boolExpr "True"))) e)
   _ -> ABranch p e
 
-addConsts :: TypeExpr -> TAExpr -> TAExpr
-addConsts ty e = case ty of
-  FuncType t1 t2 -> AComb (FuncType t1 (annExpr e')) FuncCall
-    (("Prelude", "const"), constType) [e']
-   where
-    e'        = addConsts t2 e
-
-    constType = FuncType (TVar 0) (FuncType (TVar 1) (TVar 0))
-  ForallType _ t -> addConsts t e
-  _ -> e
-
 type Arity = Int
-
 type Constructor = (QName, Arity)
-
 type ModuleName = String
 
+--- Smart constructor for Boolean constants
 boolExpr :: String -> TAExpr
 boolExpr cons = AComb boolType ConsCall (("Prelude", cons), boolType) []
 
@@ -313,6 +306,7 @@ nonFailType ty = foldr FuncType boolType
 -- constructor not contained in a list of constructor names.
 type VarMap = DM.Map VarIndex (Either QName [QName])
 
+--- Remove redundant recursion from a function declaration (experimental)
 unrec :: TAFuncDecl -> TAFuncDecl
 unrec decl@(AFunc qn arity vis ty rule) = decl'
  where
@@ -322,6 +316,7 @@ unrec decl@(AFunc qn arity vis ty rule) = decl'
   unrecRule (ARule typ argVars expr) = ARule typ argVars
     (simplifyExpr (unrecExpr decl DM.empty expr))
 
+--- Remove recursion from an expression
 unrecExpr :: TAFuncDecl -> VarMap -> TAExpr -> TAExpr
 unrecExpr decl@(AFunc fname _ _ _ _) vmap expr
   = let frec = unrecExpr decl vmap
@@ -366,6 +361,8 @@ binds2VarMap (((i, typ), e) : bs) = case e of
   AComb _ ConsCall (qn, _) _ -> DM.insert i (Left qn) (binds2VarMap bs)
   _ -> binds2VarMap bs
 
+--- Determines whether a function returns a constant result for a list of arguments
+--- which might be bound to values contained in a map
 constantResult :: TAFuncDecl -> VarMap -> [TAExpr] -> Maybe TAExpr
 constantResult decl@(AFunc qn arity vis ty (ARule rty vars exp)) vmap argExps
   = case go vmap' exp of

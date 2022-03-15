@@ -13,7 +13,6 @@ module FlatCurry.Typed.TypeCheck
 import           Control.Monad                        ( when )
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State
-import           Debug.Trace
 import           FlatCurry.Annotated.Goodies
   ( annExpr, annPattern, domain, funcRule, progName, range, unAnnFuncDecl )
 import           FlatCurry.ShowIntMod
