@@ -17,11 +17,16 @@ FAILEDTESTS=
 
 for p in *.curry ; do
   if [ $VERBOSE = yes ] ; then
-    $TOOLBIN $OPTS $p | tee test.out
+    $TOOLBIN $OPTS $p 2>&1 | tee test.out
   else
-    $TOOLBIN $OPTS $p > test.out
+    $TOOLBIN $OPTS $p > test.out 2>&1
   fi
-  if [ "`tail -1 test.out`" != "NON-FAILURE VERIFICATION SUCCESSFUL!" ] ; then
+  SC=`grep -c SPIO_E_NET_CONNRESET test.out` # check for internal SICStus error
+  if [ $SC -gt 0 ] ; then
+     if [ $VERBOSE = yes ] ; then
+       echo "WARNING: test of $p ignored due to internal SICStus error."
+     fi
+  elif [ "`tail -1 test.out`" != "NON-FAILURE VERIFICATION SUCCESSFUL!" ] ; then
     echo "$p: FULL VERIFICATION FAILED!"
     FAILEDTESTS="$FAILEDTESTS $p"
     ECODE=1
