@@ -50,7 +50,7 @@
       }
     ],
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/property-prover.git",
+        "git": "https://github.com/curry-packages/property-prover..git",
         "tag": "$version"
     }
 }
