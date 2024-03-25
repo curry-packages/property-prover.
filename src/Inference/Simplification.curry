@@ -192,7 +192,7 @@ rnPattern xs (APattern a p ys) = let (as, bs) = takeVars xs ys
 rnPattern xs l@(ALPattern _ _) = (xs, l)
 
 --- Annotated FlatCurry expression representing `failed`
-failedExpr :: TypeAnn -> AExpr TypeAnn
+failedExpr :: typeann -> AExpr typeann
 failedExpr ann = AComb ann FuncCall (("Prelude", "failed"), ann) []
 
 --- Is the given expression equal to `failed`?
