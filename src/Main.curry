@@ -56,8 +56,8 @@ testcv s = evalStateT (verifyMod s) $
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Property Verification Tool for Curry (Version of 15/03/22)"
-   bannerLine = take (length bannerText) (repeat '=')
+  bannerText = "Property Verification Tool for Curry (Version of 23/06/22)"
+  bannerLine = take (length bannerText) (repeat '=')
 
 ---------------------------------------------------------------------------
 main :: IO ()
