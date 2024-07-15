@@ -3,7 +3,7 @@
 --- operations.
 ---
 --- @author  Michael Hanus
---- @version March 2022
+--- @version July 2024
 ---------------------------------------------------------------------------
 
 module Main where
@@ -37,6 +37,7 @@ import FlatCurry.Typed.Read
 import PackageConfig ( packagePath )
 import ToolOptions
 import VerifierState
+
 ------------------------------------------------------------------------
 -- To support testing:
 
@@ -56,7 +57,7 @@ testcv s = evalStateT (verifyMod s) $
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Property Verification Tool for Curry (Version of 15/03/22)"
+   bannerText = "Property Verification Tool for Curry (Version of 15/07/24)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ---------------------------------------------------------------------------
