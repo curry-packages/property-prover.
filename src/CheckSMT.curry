@@ -331,7 +331,7 @@ evalFunc post funcname functype args = do
   let functype' = ioType $ listType functype
   writeFile "Eval.curry" $ unlines $
     [ "module Eval where"
-    , "import Control.AllValues ( getAllValues )"
+    , "import Control.Search.AllValues ( getAllValues )"
     , "import " ++ fst funcname
     , "eval :: IO ()"
     , "eval = sequence_ ["
