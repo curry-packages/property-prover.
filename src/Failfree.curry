@@ -17,6 +17,7 @@ import FlatCurry.Annotated.Goodies
 import FlatCurry.Types             ( showQName )
 import Language.SMTLIB.Goodies
 import qualified Language.SMTLIB.Types as SMT
+import RW.Base                     ( ReadWrite )
 
 import CheckSMT
 import Common
@@ -38,7 +39,7 @@ proveNonFailingFuncs prog = do
 
   -- Loads CASS analysis results for a module and its imported entities.
 loadAnalysisWithImports ::
-  (Read a, Show a) => Analysis a -> TAProg -> IO (ProgInfo a)
+  (Read a, Show a, ReadWrite a) => Analysis a -> TAProg -> IO (ProgInfo a)
 loadAnalysisWithImports analysis prog = do
   maininfo <- analyzeGeneric analysis (progName prog)
                 >>= return . either id error

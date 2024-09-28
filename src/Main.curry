@@ -3,7 +3,7 @@
 --- operations.
 ---
 --- @author  Michael Hanus
---- @version July 2024
+--- @version September 2024
 ---------------------------------------------------------------------------
 
 module Main where
@@ -57,7 +57,7 @@ testcv s = evalStateT (verifyMod s) $
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Property Verification Tool for Curry (Version of 15/07/24)"
+   bannerText = "Property Verification Tool for Curry (Version of 28/09/24)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ---------------------------------------------------------------------------

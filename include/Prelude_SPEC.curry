@@ -33,15 +33,15 @@ op_x2121'nonfail xs n = n >= 0 && length (take (n+1) xs) == n+1
 showTuple'nonfail :: [ShowS] -> String -> Bool
 showTuple'nonfail xs _ = not (null xs)
 
--- Non-failure condition for '_impl#divMod#Prelude.Integral#Prelude.Int',
+-- Non-failure condition for '_impl#divMod#Prelude.Integral#Prelude.Int#',
 -- i.e., operation `divMod` in instance `Integral Int`.
-op_x5F696D706C236469764D6F64235072656C7564652E496E74656772616C235072656C7564652E496E74'nonfail :: Int -> Int -> Bool
-op_x5F696D706C236469764D6F64235072656C7564652E496E74656772616C235072656C7564652E496E74'nonfail x y = y /= 0
+op_x5F696D706C236469764D6F64235072656C7564652E496E74656772616C235072656C7564652E496E7423'nonfail :: Int -> Int -> Bool
+op_x5F696D706C236469764D6F64235072656C7564652E496E74656772616C235072656C7564652E496E7423'nonfail x y = y /= 0
 
--- Non-failure condition for '_impl#quotRem#Prelude.Integral#Prelude.Int',
+-- Non-failure condition for '_impl#quotRem#Prelude.Integral#Prelude.Int#',
 -- i.e., operation `quotRem` in instance `Integral Int`.
-op_x5F696D706C2371756F7452656D235072656C7564652E496E74656772616C235072656C7564652E496E74'nonfail :: Int -> Int -> Bool
-op_x5F696D706C2371756F7452656D235072656C7564652E496E74656772616C235072656C7564652E496E74'nonfail x y = y /= 0
+op_x5F696D706C2371756F7452656D235072656C7564652E496E74656772616C235072656C7564652E496E7423'nonfail :: Int -> Int -> Bool
+op_x5F696D706C2371756F7452656D235072656C7564652E496E74656772616C235072656C7564652E496E7423'nonfail x y = y /= 0
 
 ------------------------------------------------------------------------------
 -- External operations:
